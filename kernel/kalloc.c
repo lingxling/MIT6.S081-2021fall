@@ -80,3 +80,17 @@ kalloc(void)
     memset((char*)r, 5, PGSIZE); // fill with junk
   return (void*)r;
 }
+
+uint64 freemem(void) {
+  struct run *r;
+  uint64 sz = 0;
+  acquire(&kmem.lock);
+  r = kmem.freelist;  // freelist是第一个未被使用的页的地址
+  while (r) {
+    sz += 1;
+    r = r -> next;
+  }
+  sz = sz * PGSIZE;
+  release(&kmem.lock);
+  return sz;
+}
