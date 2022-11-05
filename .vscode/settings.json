@@ -1,0 +1,8 @@
+{
+    "files.associations": {
+        "riscv.h": "c",
+        "defs.h": "c",
+        "memlayout.h": "c",
+        "user.h": "c"
+    }
+}

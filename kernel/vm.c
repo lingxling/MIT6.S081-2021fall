@@ -84,14 +84,15 @@ walk(pagetable_t pagetable, uint64 va, int alloc)
     panic("walk");
 
   for(int level = 2; level > 0; level--) {
-    pte_t *pte = &pagetable[PX(level, va)];
-    if(*pte & PTE_V) {
-      pagetable = (pagetable_t)PTE2PA(*pte);
+    // PX根据level提取va对应的9bit的L0/L1/L2，即64bits只有最右9bit起作用，可以索引pagetable不越界
+    pte_t *pte = &pagetable[PX(level, va)];  // 根据L0/L1/L2获取页表中对应的pte，并取其地址
+    if(*pte & PTE_V) {  // 如果该PTE有效
+      pagetable = (pagetable_t)PTE2PA(*pte);  // 找到次一级页表
     } else {
-      if(!alloc || (pagetable = (pde_t*)kalloc()) == 0)
+      if(!alloc || (pagetable = (pde_t*)kalloc()) == 0)  // 创建一个新的page
         return 0;
       memset(pagetable, 0, PGSIZE);
-      *pte = PA2PTE(pagetable) | PTE_V;
+      *pte = PA2PTE(pagetable) | PTE_V;  // 将PTE置为valid
     }
   }
   return &pagetable[PX(0, va)];
@@ -431,4 +432,28 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
   } else {
     return -1;
   }
+}
+
+void __vmprint(pagetable_t pagetable, int level) {
+  for(int i = 0; i < 512; i++){
+    pte_t pte = pagetable[i];
+    if((pte & PTE_V) && (pte & (PTE_R|PTE_W|PTE_X)) == 0){
+      // this PTE points to a lower-level page table.
+      uint64 child = PTE2PA(pte);
+      for (int j = 0; j <= level; ++j) {
+        printf("..");
+        if (j+1 <= level) printf(" ");
+      }
+      printf("%d: pte %p pa %p\n", i, pte, child);
+      __vmprint((pagetable_t)child, level+1);  
+    } else if(pte & PTE_V){  // leaf pte
+      uint64 pa = PTE2PA(pte);
+      printf(".. .. ..%d: pte %p pa %p\n", i, pte, pa);
+    }
+  }
+}
+
+void vmprint(pagetable_t pagetable) {
+  printf("page table %p\n", pagetable);
+  __vmprint(pagetable, 0);
 }
