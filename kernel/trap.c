@@ -67,6 +67,16 @@ usertrap(void)
     syscall();
   } else if((which_dev = devintr()) != 0){
     // ok
+    if (which_dev == 2) {  // timer interrupt
+      if (p->passed_ticks == p->interval && p->on_alarm == 0) {
+        p->passed_ticks = 0;
+        // 这里令p->trapframe->epc指向handler函数，
+        // 使得trap结束后，程序计数器pc被p->trapframe-epc覆盖，执行的就是handler函数
+        p->trapframe->epc = (uint64)p->handler;
+        p->on_alarm = 1;
+      }
+      p->passed_ticks += 1;
+    }
   } else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
